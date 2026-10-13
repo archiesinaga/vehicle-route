@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vehicle Route Tracker
 
-## Getting Started
+A web app for reviewing the route a company vehicle took on a trip. Pick a ticket, and the app draws the trip on a map, lists every recorded stop with its time, address and speed, and shows the photos captured when the trip started and ended.
 
-First, run the development server:
+Built during an internship at PT Sumatera Prima Fibreboard, where it was used to monitor 10–20 trucks per day across 4 checkpoints, replacing estimated departure and stop times with recorded ones.
+
+## What it does
+
+- **Ticket lookup** — the home page lists every ticket in the database; selecting one opens `/tracking/[ticketID]`.
+- **Route map** — the trip's driving segments are plotted on an interactive [Leaflet](https://leafletjs.com) map.
+- **Route table** — each point with its timestamp, address and average speed, ordered chronologically.
+- **Start / end photos** — images captured at departure and arrival, stored in the database and shown in an image viewer.
+- **Description tab** — vehicle number, plate and trip start/end dates.
+
+## How it works
+
+The trip data comes from a vehicle GPS provider's JSON export, stored in MongoDB as the `easyGo` field of each ticket (see `src/models/Tracking.ts`). The API route `src/app/api/tracking/[ticketID]/route.ts`:
+
+1. Loads the ticket by ID.
+2. Parses the export (it may arrive as an object or a JSON string) and keeps only the `Driving` segments.
+3. Flattens them into `{ lat, lon, time, addr, speed }` points, sorted by time.
+4. Converts the stored start/end image buffers to base64 so the browser can display them.
+
+## Tech stack
+
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 + daisyUI · MongoDB with Mongoose · React Leaflet · Geolib
+
+## Running locally
+
+You need Node.js 18+ and a MongoDB database that holds tracking documents in the shape described by `src/models/Tracking.ts`. The collection is named `capture`.
+
+```bash
+npm install
+```
+
+Create `.env.local`:
+
+```
+MONGODB_URI=mongodb://localhost:27017/your-database
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── page.tsx                      # Ticket selector
+│   ├── tracking/[ticketID]/page.tsx  # Trip view (map, table, images)
+│   └── api/tracking/[ticketID]/      # Reads a ticket and returns route points
+├── components/                       # Map, RouteTable, TrackingTabs, ImageViewer, ...
+├── lib/mongodb.ts                    # Cached MongoDB connection (survives hot reloads)
+└── models/Tracking.ts                # Mongoose schema
+```
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The data source is the company's GPS export, which is not included, so the app shows no tickets until you add documents of your own.
+- This is an internal tool: there is no login, so do not expose it to the public internet with real vehicle data.
